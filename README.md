@@ -7,6 +7,7 @@ To run the PA1_template.Rmd file under RStudio, you need to follow the steps bel
 2. Unzip the file.
 
 3. Set the RStudio working directory to the unzipped directory which contains activity.cvs and PA1_template.Rmd
+   e.g. for Window: setwd("C:\\Users\\Tony\\dataScience1\\RepData_PeerAssessment1")
 
 4. If library reshape2 is not installed, please install this library first.
 
