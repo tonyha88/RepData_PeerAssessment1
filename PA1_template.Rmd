@@ -1,20 +1,130 @@
 # Reproducible Research: Peer Assessment 1
+## Introduction
 
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
 
 ## Loading and preprocessing the data
 
+```{r load datset, echo=TRUE}
+# NOTE: the command below needed to change to point to the working directory, which contains activity.csv file.
+#setwd("C:\\Users\\Tony\\dataScience1\\RepData_PeerAssessment1")
 
+# read the dataset
+data <- read.csv("./activity.csv")
+data1 <- na.omit(data)
+steps_mean <- aggregate(data1$steps, by=list(data1$interval), FUN=sum)
+#dim(steps_mean) #[1] 288   2
+# rename the columns names of steps_mean to more meaningful names.
+colnames(steps_mean) <- c("interval", "average_steps_all_days")
+```
 
 ## What is mean total number of steps taken per day?
 
+The histogram below shows the total number of steps taken each day:
 
+```{r echo=TRUE, fig.width=7, fig.height=6.5}
+hist(steps_mean$average_steps_all_days, breaks=61, col="green",xlab="Steps", main="Total number of steps taken each day")
+```
+
+The **mean** and **median** total number of steps taken per day is calculate using function mean() and median() accordingly.
+```{r echo=TRUE}
+mean(steps_mean$average_steps_all_days, na.rm=T)
+median(steps_mean$average_steps_all_days, na.rm=T)
+```
 
 ## What is the average daily activity pattern?
 
+The time series plot below shows the 5-minute interval (x-axis) vs. the average number of steps taken, averaged across all days (y-axis):
+```{r echo=TRUE, fig.width=7, fig.height=6.5}
+plot(steps_mean$interval, steps_mean$average_steps_all_days, type="l",xlab="5 Minutes Step Intervals", ylab="Average number of steps", main="Time series plot of average daily activity")
+```
+The command below shows the the maximum number of steps "10927" occurs in the 5-minute internal of "835".
 
-
+```{r echo=TRUE}
+subset(steps_mean, average_steps_all_days==max(steps_mean$average_steps_all_days))
+```
 ## Imputing missing values
 
+The total number of rows has missing value (NA) in the dataset is 2304 as show by the command below:
+```{r echo=TRUE}
+sum(is.na(data))
+```
 
+The missing value in the dataset will be replaced with the mean of each 5 minute interval, using the R code below.
+
+```{r echo=TRUE}
+#subset the steps and internal columns
+data2 <- data1[ , c("steps", "interval")]
+
+library(reshape2)
+#use melt and dcat to calculate the mean of each 5 minute interval.
+mdata <- melt(data2, id.vars = c("interval"))
+cdata <- dcast(mdata, interval  ~ variable, mean)
+#colnames(cdata) <- c("interval", "average_steps_intervals")
+
+#find out which rows contains NA.
+na_rows <- which(is.na(data))
+
+#extend cdata to have the same length as data, (i.e. 17568/288=61)
+ncdata <- do.call("rbind", replicate(61, cdata, simplify = FALSE))
+#extra the colum steps only.
+int_steps <- ncdata[, c("steps"),drop=FALSE] 
+
+#replace NA with average_steps_intervals.
+data3 <- data
+data3[na_rows,c("steps")] <- int_steps[na_rows,]
+```
+
+The histogram below shows the total number of steps taken each day of the new filled dataset:
+```{r echo=TRUE, fig.width=7, fig.height=6.5}
+steps_mean2 <- aggregate(data3$steps, by=list(data3$interval), FUN=sum)
+#dim(steps_mean2) #[1] 288   2
+# rename the columns names of steps_mean to more meaningful names.
+colnames(steps_mean2) <- c("interval", "average_steps_all_days")
+hist(steps_mean2$average_steps_all_days, breaks=61, col="green",xlab="Steps", main="Total number of steps taken each day")
+```
+
+The **mean** and **median** total number of steps taken per day of the new dataset is calculate using function mean() and median() accordingly.
+
+```{r echo=TRUE}
+mean(steps_mean2$average_steps_all_days, na.rm=T)
+median(steps_mean2$average_steps_all_days, na.rm=T)
+```
+By inspect the historgram plots of the original dataset and the new filled dataset, one can see there are some difference between them, and one can clearly see the difference between them by compare the first fifteen numbers of the datasets as show below:
+
+```{r echo=TRUE}
+round(head(steps_mean$average_steps_all_days,15))
+round(head(steps_mean2$average_steps_all_days,15))
+```
+
+The **mean** and **median** total number of steps taken per day of the orignal dataset and the new dataset are slighly differnece, and they are: 1981.278, 1808 and 2280.339, 2080.906 respectively.
+
+There are some impact of imputing missing data on the estimates of the total daily number of steps as show in the historgrams, but the overall sharp of the historgram remain similar.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+The codes below create a new factor variable called "weekdays" and add it into the new dataset call "data3"
+```{r echo=TRUE}
+wd <- data3$date
+wd <- strptime(wd, "%Y-%m-%d")
+data3$weekdays <- weekdays(wd)
+
+data3[data3$weekdays=="Saturday" | data3$weekdays=="Sunday", c("weekdays")] <- "weekend"
+data3[data3$weekdays!="weekend", c("weekdays")] <- "weekday"
+# turn weekdays into a factor variable
+data3$weekdays <- as.factor(data3$weekdays)
+head(data3)
+tail(data3)
+```
+The codes below create a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). One can see there are difference activity patterns between weekdays and weekends
+
+```{r echo=TRUE}
+#use melt and dcat to calculate the mean of each 5 minute interval.
+mdata3 <- melt(data3, id.vars = c("interval", "weekdays", "date"))
+cdata3 <- dcast(mdata3, interval + weekdays ~ variable, mean)
+
+library(lattice)
+#xyplot(interval ~ steps | weekdays, data=cdata3, type="l", layout =c(1,2))
+xyplot(steps ~ interval | weekdays, data=cdata3, type="l", layout =c(1,2), xlab="Interval", ylab="Number of steps")
+
+```
